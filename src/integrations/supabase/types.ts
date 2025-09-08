@@ -14,7 +14,248 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bookings: {
+        Row: {
+          booking_date: string
+          created_at: string | null
+          end_time: string
+          facility_id: string | null
+          id: string
+          payment_id: string | null
+          special_requests: string | null
+          start_time: string
+          status: Database["public"]["Enums"]["booking_status"] | null
+          team_size: number | null
+          total_amount: number
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          booking_date: string
+          created_at?: string | null
+          end_time: string
+          facility_id?: string | null
+          id?: string
+          payment_id?: string | null
+          special_requests?: string | null
+          start_time: string
+          status?: Database["public"]["Enums"]["booking_status"] | null
+          team_size?: number | null
+          total_amount: number
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          booking_date?: string
+          created_at?: string | null
+          end_time?: string
+          facility_id?: string | null
+          id?: string
+          payment_id?: string | null
+          special_requests?: string | null
+          start_time?: string
+          status?: Database["public"]["Enums"]["booking_status"] | null
+          team_size?: number | null
+          total_amount?: number
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_facility_id_fkey"
+            columns: ["facility_id"]
+            isOneToOne: false
+            referencedRelation: "facilities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      facilities: {
+        Row: {
+          address: string
+          amenities: string[] | null
+          base_price_per_hour: number
+          cancellation_policy: string | null
+          capacity: number | null
+          city: string
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          images: string[] | null
+          is_equipment_rental: boolean | null
+          latitude: number | null
+          longitude: number | null
+          name: string
+          operating_hours: Json | null
+          owner_id: string | null
+          pincode: string
+          sports: Database["public"]["Enums"]["sport_type"][]
+          state: string
+          status: Database["public"]["Enums"]["facility_status"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          address: string
+          amenities?: string[] | null
+          base_price_per_hour: number
+          cancellation_policy?: string | null
+          capacity?: number | null
+          city: string
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          images?: string[] | null
+          is_equipment_rental?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          operating_hours?: Json | null
+          owner_id?: string | null
+          pincode: string
+          sports: Database["public"]["Enums"]["sport_type"][]
+          state: string
+          status?: Database["public"]["Enums"]["facility_status"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string
+          amenities?: string[] | null
+          base_price_per_hour?: number
+          cancellation_policy?: string | null
+          capacity?: number | null
+          city?: string
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          images?: string[] | null
+          is_equipment_rental?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          operating_hours?: Json | null
+          owner_id?: string | null
+          pincode?: string
+          sports?: Database["public"]["Enums"]["sport_type"][]
+          state?: string
+          status?: Database["public"]["Enums"]["facility_status"] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facilities_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      facility_reviews: {
+        Row: {
+          created_at: string | null
+          facility_id: string | null
+          id: string
+          rating: number | null
+          review_text: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          facility_id?: string | null
+          id?: string
+          rating?: number | null
+          review_text?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          facility_id?: string | null
+          id?: string
+          rating?: number | null
+          review_text?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facility_reviews_facility_id_fkey"
+            columns: ["facility_id"]
+            isOneToOne: false
+            referencedRelation: "facilities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facility_reviews_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          date_of_birth: string | null
+          email: string
+          full_name: string
+          id: string
+          is_verified: boolean | null
+          location: string | null
+          loyalty_points: number | null
+          phone: string | null
+          role: Database["public"]["Enums"]["user_role"] | null
+          skill_level: number | null
+          updated_at: string | null
+          wallet_balance: number | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          date_of_birth?: string | null
+          email: string
+          full_name: string
+          id: string
+          is_verified?: boolean | null
+          location?: string | null
+          loyalty_points?: number | null
+          phone?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          skill_level?: number | null
+          updated_at?: string | null
+          wallet_balance?: number | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          date_of_birth?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          is_verified?: boolean | null
+          location?: string | null
+          loyalty_points?: number | null
+          phone?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          skill_level?: number | null
+          updated_at?: string | null
+          wallet_balance?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +264,20 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      booking_status: "pending" | "confirmed" | "cancelled" | "completed"
+      facility_status: "pending" | "approved" | "rejected"
+      sport_type:
+        | "football"
+        | "basketball"
+        | "tennis"
+        | "cricket"
+        | "badminton"
+        | "volleyball"
+        | "table_tennis"
+        | "swimming"
+        | "gym"
+        | "other"
+      user_role: "user" | "facility_owner" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +404,22 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      booking_status: ["pending", "confirmed", "cancelled", "completed"],
+      facility_status: ["pending", "approved", "rejected"],
+      sport_type: [
+        "football",
+        "basketball",
+        "tennis",
+        "cricket",
+        "badminton",
+        "volleyball",
+        "table_tennis",
+        "swimming",
+        "gym",
+        "other",
+      ],
+      user_role: ["user", "facility_owner", "admin"],
+    },
   },
 } as const
