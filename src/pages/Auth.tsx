@@ -5,7 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Dumbbell, Mail, Lock, User, Phone } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Dumbbell, Mail, Lock, User, Phone, Building2, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
@@ -25,6 +27,7 @@ const Auth = () => {
   const [signupPassword, setSignupPassword] = useState("");
   const [signupFullName, setSignupFullName] = useState("");
   const [signupPhone, setSignupPhone] = useState("");
+  const [signupRole, setSignupRole] = useState<"user" | "owner">("user");
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -101,6 +104,7 @@ const Auth = () => {
           data: {
             full_name: signupFullName,
             phone: signupPhone,
+            role: signupRole,
           }
         }
       });
@@ -201,6 +205,25 @@ const Auth = () => {
 
               <TabsContent value="signup" className="space-y-4">
                 <form onSubmit={handleSignup} className="space-y-4">
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">I am a</Label>
+                    <RadioGroup value={signupRole} onValueChange={(value: "user" | "owner") => setSignupRole(value)} className="flex gap-4">
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="user" id="user" />
+                        <Label htmlFor="user" className="flex items-center gap-2 cursor-pointer font-normal">
+                          <Users className="h-4 w-4" />
+                          Player
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="owner" id="owner" />
+                        <Label htmlFor="owner" className="flex items-center gap-2 cursor-pointer font-normal">
+                          <Building2 className="h-4 w-4" />
+                          Facility Owner
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
                   <div className="space-y-2">
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
