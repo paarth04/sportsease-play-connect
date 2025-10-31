@@ -2,13 +2,16 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { loadStripe } from "@stripe/stripe-js";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, MapPin, DollarSign, CreditCard, CheckCircle2 } from "lucide-react";
+import { Calendar, Clock, MapPin, CreditCard, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+const stripePromise = loadStripe("pk_test_51QeErfRs6kkpqHBcpV3BjS8GDhFcfZfF1bICb2BZpxYCxMf7N0xYvUwIaCWqOmKZMCBxCqVHXYEuNMFdTXpCBOoT00bEZWbp2J");
 
 interface Booking {
   id: string;
@@ -76,18 +79,42 @@ const BookingPayment = () => {
 
     setProcessing(true);
     try {
-      // For now, we'll simulate payment and update booking status
-      // In production, you would create a Stripe Payment Intent here
-      
-      const { error } = await supabase
+      const stripe = await stripePromise;
+      if (!stripe) throw new Error("Stripe failed to load");
+
+      // Create payment intent via edge function
+      const { data, error: functionError } = await supabase.functions.invoke(
+        "create-payment-intent",
+        {
+          body: { bookingId: booking.id },
+        }
+      );
+
+      if (functionError) throw functionError;
+
+      const { clientSecret } = data;
+
+      // Redirect to Stripe Checkout
+      const { error: stripeError } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: {
+            token: "tok_visa", // Test token - in production, use Stripe Elements
+          },
+        },
+      });
+
+      if (stripeError) throw stripeError;
+
+      // Update booking status
+      const { error: updateError } = await supabase
         .from("bookings")
-        .update({ 
+        .update({
           status: "confirmed",
-          payment_id: `pay_${Date.now()}` // Simulated payment ID
+          payment_id: clientSecret,
         })
         .eq("id", booking.id);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
       toast({
         title: "Payment Successful!",
@@ -96,9 +123,10 @@ const BookingPayment = () => {
 
       navigate("/dashboard");
     } catch (error: any) {
+      console.error("Payment error:", error);
       toast({
         title: "Payment Failed",
-        description: error.message,
+        description: error.message || "An error occurred during payment",
         variant: "destructive",
       });
     } finally {

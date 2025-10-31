@@ -2,12 +2,12 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/layout/Header";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, MapPin, Star, DollarSign, Users } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { Search, MapPin, DollarSign, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Facility {
@@ -31,6 +31,7 @@ const Facilities = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSport, setSelectedSport] = useState<string>("all");
   const [selectedCity, setSelectedCity] = useState<string>("all");
+  const [priceRange, setPriceRange] = useState<number[]>([0, 5000]);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -68,11 +69,16 @@ const Facilities = () => {
     }
   };
 
-  const filteredFacilities = facilities.filter((facility) =>
-    facility.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    facility.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    facility.sports.some((sport) => sport.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredFacilities = facilities.filter((facility) => {
+    const matchesSearch = facility.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      facility.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      facility.sports.some((sport) => sport.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    const matchesPrice = facility.base_price_per_hour >= priceRange[0] &&
+      facility.base_price_per_hour <= priceRange[1];
+    
+    return matchesSearch && matchesPrice;
+  });
 
   const uniqueCities = Array.from(new Set(facilities.map(f => f.city)));
   const allSports = Array.from(new Set(facilities.flatMap(f => f.sports)));
@@ -119,6 +125,21 @@ const Facilities = () => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          
+          {/* Price Range Filter */}
+          <div className="flex flex-col gap-2 p-4 border rounded-lg bg-card">
+            <label className="text-sm font-medium">
+              Price Range: ₹{priceRange[0]} - ₹{priceRange[1]}/hr
+            </label>
+            <Slider
+              value={priceRange}
+              onValueChange={setPriceRange}
+              min={0}
+              max={5000}
+              step={100}
+              className="w-full"
+            />
           </div>
         </div>
 
