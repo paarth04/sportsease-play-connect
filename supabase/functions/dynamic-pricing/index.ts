@@ -19,24 +19,35 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get facility base price
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY not configured');
+    }
+
+    // Get facility details
     const { data: facility } = await supabaseClient
       .from('facilities')
-      .select('base_price_per_hour')
+      .select('*')
       .eq('id', facilityId)
       .single();
 
-    // Get bookings for the same time slot to determine demand
-    const { data: bookings } = await supabaseClient
+    // Get existing bookings for demand analysis
+    const { data: existingBookings } = await supabaseClient
       .from('bookings')
       .select('*')
       .eq('facility_id', facilityId)
       .eq('booking_date', date);
 
+    // Get historical bookings for the same time period
+    const { data: historicalBookings } = await supabaseClient
+      .from('bookings')
+      .select('*')
+      .eq('facility_id', facilityId)
+      .gte('booking_date', new Date(new Date(date).getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+      .lt('booking_date', date);
+
     // Use AI to calculate dynamic price
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
@@ -44,34 +55,39 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
-        messages: [{
-          role: 'user',
-          content: `Calculate dynamic pricing for a sports facility booking.
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a dynamic pricing engine for sports facilities. Calculate optimal pricing based on demand, time of day, day of week, historical data, and current bookings. Consider peak hours, weekends, and booking density. Return JSON only.'
+          },
+          {
+            role: 'user',
+            content: `Calculate dynamic price for:
+Facility: ${JSON.stringify(facility)}
+Base Price: ₹${facility.base_price_per_hour}/hour
+Requested Time: ${date} ${startTime} - ${endTime}
+Current Day Bookings: ${existingBookings?.length || 0}
+Historical Bookings (30 days): ${historicalBookings?.length || 0}
 
-Base Price: ₹${facility?.base_price_per_hour}/hour
-Requested Date: ${date}
-Requested Time: ${startTime} - ${endTime}
-Day of Week: ${new Date(date).toLocaleDateString('en-US', { weekday: 'long' })}
-Existing Bookings Today: ${bookings?.length || 0}
-
-Factors to consider:
-- Peak hours (5 PM - 9 PM): +20-30%
-- Weekends: +15-25%
-- High demand (>5 bookings): +10-20%
-- Off-peak hours (10 AM - 3 PM): -10-15%
-- Weekdays morning: -15-20%
-
-Return a JSON object with the adjusted price and brief explanation. Format:
-{"adjustedPrice": number, "multiplier": number, "explanation": "brief reason for price adjustment"}`
-        }],
+Return format: { "adjustedPrice": number, "multiplier": number, "factors": ["list of pricing factors"], "explanation": "brief explanation" }`
+          }
+        ],
       }),
     });
 
-    const aiData = await aiResponse.json();
-    const pricing = JSON.parse(aiData.choices[0].message.content);
+    if (!response.ok) {
+      throw new Error(`AI request failed: ${response.statusText}`);
+    }
+
+    const aiData = await response.json();
+    const content = aiData.choices[0].message.content;
+    const pricingData = JSON.parse(content);
 
     return new Response(
-      JSON.stringify(pricing),
+      JSON.stringify({
+        basePrice: facility.base_price_per_hour,
+        ...pricingData
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

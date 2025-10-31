@@ -12,17 +12,24 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY not configured');
+    }
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_PUBLISHABLE_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader! } } }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) throw new Error('Unauthorized');
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new Error('No authorization header');
 
-    // Get user bookings history and preferences
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user } } = await supabaseClient.auth.getUser(token);
+    if (!user) throw new Error('Not authenticated');
+
+    // Get user booking history and preferences
     const { data: bookings } = await supabaseClient
       .from('bookings')
       .select('*, facility:facilities(*)')
@@ -36,12 +43,6 @@ serve(async (req) => {
       .eq('user_id', user.id)
       .single();
 
-    const { data: profile } = await supabaseClient
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-
     // Get all available facilities
     const { data: facilities } = await supabaseClient
       .from('facilities')
@@ -49,9 +50,7 @@ serve(async (req) => {
       .eq('status', 'approved');
 
     // Use AI to recommend facilities
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
@@ -59,34 +58,34 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
-        messages: [{
-          role: 'user',
-          content: `Recommend sports facilities based on user history and preferences.
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a sports facility recommendation engine. Analyze user preferences and booking history to recommend the top 5 most suitable facilities. Consider sports preferences, location, budget, and past bookings. Return JSON only.'
+          },
+          {
+            role: 'user',
+            content: `Recommend facilities for:
+User Preferences: ${JSON.stringify(preferences)}
+Booking History: ${JSON.stringify(bookings)}
+Available Facilities: ${JSON.stringify(facilities)}
 
-User Profile:
-- Location: ${profile?.location || 'Not specified'}
-- Preferred Sports: ${preferences?.preferred_sports?.join(', ') || 'Not specified'}
-- Budget Range: ${JSON.stringify(preferences?.budget_range || {})}
-
-Booking History: ${JSON.stringify(bookings?.map(b => ({
-  facility: b.facility?.name,
-  sport: b.facility?.sports,
-  price: b.total_amount
-})) || [])}
-
-Available Facilities: ${JSON.stringify(facilities?.slice(0, 20) || [])}
-
-Return a JSON array of the top 5 recommended facility IDs with reasons. Format:
-[{"facilityId": "uuid", "score": 0-100, "reason": "brief personalized explanation"}]`
-        }],
+Return format: { "recommendations": [{ "facility_id": "uuid", "score": 0-100, "reason": "personalized explanation" }] }`
+          }
+        ],
       }),
     });
 
-    const aiData = await aiResponse.json();
-    const recommendations = JSON.parse(aiData.choices[0].message.content);
+    if (!response.ok) {
+      throw new Error(`AI request failed: ${response.statusText}`);
+    }
+
+    const aiData = await response.json();
+    const content = aiData.choices[0].message.content;
+    const recommendations = JSON.parse(content);
 
     return new Response(
-      JSON.stringify({ recommendations }),
+      JSON.stringify(recommendations),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

@@ -11,3 +11,12 @@ verify_jwt = true
 
 [functions.dynamic-pricing]
 verify_jwt = false
+
+[functions.player-matching]
+verify_jwt = true
+
+[functions.facility-recommendations]
+verify_jwt = true
+
+[functions.dynamic-pricing]
+verify_jwt = false

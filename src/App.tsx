@@ -12,6 +12,7 @@ import UserDashboard from "./pages/UserDashboard";
 import OwnerDashboard from "./pages/OwnerDashboard";
 import BookingPayment from "./pages/BookingPayment";
 import Community from "./pages/Community";
+import PlayerMatching from "./pages/PlayerMatching";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/owner/dashboard" element={<OwnerDashboard />} />
             <Route path="/bookings/:id/payment" element={<BookingPayment />} />
             <Route path="/community" element={<Community />} />
+            <Route path="/player-matching" element={<PlayerMatching />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

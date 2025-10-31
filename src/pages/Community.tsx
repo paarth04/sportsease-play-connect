@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Users, Trophy, UserPlus, Calendar } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Users, Trophy, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Team {
@@ -15,9 +16,8 @@ interface Team {
   name: string;
   sport: string;
   skill_level: number;
-  max_members: number;
+  description: string;
   captain_id: string;
-  member_count: number;
 }
 
 interface Tournament {
@@ -26,11 +26,17 @@ interface Tournament {
   sport: string;
   start_date: string;
   end_date: string;
+  status: string;
   max_teams: number;
   entry_fee: number;
   prize_pool: number;
-  status: string;
-  participant_count: number;
+}
+
+interface Player {
+  id: string;
+  full_name: string;
+  skill_level: number;
+  location: string;
 }
 
 const Community = () => {
@@ -39,6 +45,7 @@ const Community = () => {
   const { toast } = useToast();
   const [teams, setTeams] = useState<Team[]>([]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,70 +58,37 @@ const Community = () => {
 
   const fetchData = async () => {
     try {
-      // Fetch teams with member count
-      const { data: teamsData, error: teamsError } = await supabase
-        .from("teams")
-        .select(`
-          *,
-          team_members(count)
-        `)
-        .order("created_at", { ascending: false });
+      const [teamsRes, tournamentsRes, playersRes] = await Promise.all([
+        supabase.from("teams").select("*"),
+        supabase.from("tournaments").select("*").order("start_date", { ascending: true }),
+        supabase.from("profiles").select("id, full_name, skill_level, location").limit(10),
+      ]);
 
-      if (teamsError) throw teamsError;
-
-      const teamsWithCount = teamsData?.map(team => ({
-        ...team,
-        member_count: team.team_members?.[0]?.count || 0
-      })) || [];
-
-      // Fetch tournaments with participant count
-      const { data: tournamentsData, error: tournamentsError } = await supabase
-        .from("tournaments")
-        .select(`
-          *,
-          tournament_participants(count)
-        `)
-        .order("start_date", { ascending: true });
-
-      if (tournamentsError) throw tournamentsError;
-
-      const tournamentsWithCount = tournamentsData?.map(tournament => ({
-        ...tournament,
-        participant_count: tournament.tournament_participants?.[0]?.count || 0
-      })) || [];
-
-      setTeams(teamsWithCount);
-      setTournaments(tournamentsWithCount);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      if (teamsRes.data) setTeams(teamsRes.data);
+      if (tournamentsRes.data) setTournaments(tournamentsRes.data);
+      if (playersRes.data) setPlayers(playersRes.data);
+    } catch (error) {
+      console.error("Error fetching community data:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleJoinTeam = async (teamId: string) => {
-    if (!user) return;
-
+  const handleFollowPlayer = async (playerId: string) => {
     try {
       const { error } = await supabase
-        .from("team_members")
+        .from("player_connections")
         .insert({
-          team_id: teamId,
-          user_id: user.id,
+          follower_id: user!.id,
+          following_id: playerId,
         });
 
       if (error) throw error;
 
       toast({
-        title: "Success!",
-        description: "You've joined the team",
+        title: "Success",
+        description: "You are now following this player",
       });
-
-      fetchData();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -123,6 +97,17 @@ const Community = () => {
       });
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="container mx-auto px-4 py-8">
+          <p className="text-center text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -130,143 +115,123 @@ const Community = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">Community</h1>
-          <p className="text-muted-foreground">
-            Join teams, compete in tournaments, and connect with players
-          </p>
+          <p className="text-muted-foreground">Connect with players, join teams, and compete in tournaments</p>
         </div>
 
         <Tabs defaultValue="teams" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="teams">Teams</TabsTrigger>
-            <TabsTrigger value="tournaments">Tournaments</TabsTrigger>
-            <TabsTrigger value="players">Players</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 lg:w-auto">
+            <TabsTrigger value="teams">
+              <Users className="h-4 w-4 mr-2" />
+              Teams
+            </TabsTrigger>
+            <TabsTrigger value="tournaments">
+              <Trophy className="h-4 w-4 mr-2" />
+              Tournaments
+            </TabsTrigger>
+            <TabsTrigger value="players">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Players
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="teams" className="space-y-4">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-semibold">Active Teams</h2>
-              <Button onClick={() => navigate("/community/create-team")}>
-                <Users className="mr-2 h-4 w-4" />
-                Create Team
-              </Button>
-            </div>
-
-            {loading ? (
-              <p className="text-center text-muted-foreground">Loading teams...</p>
-            ) : teams.length === 0 ? (
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <p className="text-muted-foreground">No teams yet. Be the first to create one!</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {teams.map((team) => (
-                  <Card key={team.id} className="hover:shadow-card transition-shadow">
-                    <CardHeader>
-                      <CardTitle className="flex items-center justify-between">
-                        {team.name}
-                        <Badge>{team.sport}</Badge>
-                      </CardTitle>
-                      <CardDescription>
-                        Skill Level: {team.skill_level} / 10
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Members</span>
-                          <span className="font-medium">
-                            {team.member_count} / {team.max_members}
-                          </span>
-                        </div>
-                        <Button
-                          className="w-full"
-                          variant="outline"
-                          onClick={() => handleJoinTeam(team.id)}
-                        >
-                          <UserPlus className="mr-2 h-4 w-4" />
-                          Join Team
-                        </Button>
+          <TabsContent value="teams">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {teams.map((team) => (
+                <Card key={team.id}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      {team.name}
+                      <Badge variant="secondary">{team.sport}</Badge>
+                    </CardTitle>
+                    <CardDescription>{team.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Skill Level</span>
+                        <Badge variant="outline">{team.skill_level}/10</Badge>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+                      <Button className="w-full" variant="outline">
+                        View Team
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </TabsContent>
 
-          <TabsContent value="tournaments" className="space-y-4">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-semibold">Upcoming Tournaments</h2>
-              <Button onClick={() => navigate("/community/create-tournament")}>
-                <Trophy className="mr-2 h-4 w-4" />
-                Create Tournament
-              </Button>
-            </div>
-
-            {loading ? (
-              <p className="text-center text-muted-foreground">Loading tournaments...</p>
-            ) : tournaments.length === 0 ? (
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <p className="text-muted-foreground">No tournaments scheduled. Create one!</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {tournaments.map((tournament) => (
-                  <Card key={tournament.id} className="hover:shadow-card transition-shadow">
-                    <CardHeader>
-                      <CardTitle className="flex items-center justify-between">
-                        {tournament.name}
-                        <Badge variant={tournament.status === 'upcoming' ? 'default' : 'secondary'}>
-                          {tournament.status}
-                        </Badge>
-                      </CardTitle>
-                      <CardDescription>{tournament.sport}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span>
-                            {new Date(tournament.start_date).toLocaleDateString()} - {new Date(tournament.end_date).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Teams</span>
-                          <span className="font-medium">
-                            {tournament.participant_count} / {tournament.max_teams}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Prize Pool</span>
-                          <span className="font-bold text-primary">₹{tournament.prize_pool}</span>
-                        </div>
-                        <Button className="w-full" onClick={() => navigate(`/tournaments/${tournament.id}`)}>
-                          View Details
-                        </Button>
+          <TabsContent value="tournaments">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {tournaments.map((tournament) => (
+                <Card key={tournament.id}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      {tournament.name}
+                      <Badge>{tournament.status}</Badge>
+                    </CardTitle>
+                    <CardDescription>
+                      {new Date(tournament.start_date).toLocaleDateString()} - {new Date(tournament.end_date).toLocaleDateString()}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Sport</span>
+                        <Badge variant="secondary">{tournament.sport}</Badge>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Entry Fee</span>
+                        <span className="font-semibold">₹{tournament.entry_fee}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Prize Pool</span>
+                        <span className="font-semibold text-primary">₹{tournament.prize_pool}</span>
+                      </div>
+                      <Button className="w-full">Register Team</Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </TabsContent>
 
-          <TabsContent value="players" className="space-y-4">
-            <div className="mb-4">
-              <h2 className="text-2xl font-semibold">Find Players</h2>
-              <p className="text-muted-foreground mt-2">
-                AI-powered player matching coming soon
-              </p>
+          <TabsContent value="players">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {players.map((player) => (
+                <Card key={player.id}>
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarFallback>
+                          {player.full_name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <CardTitle className="text-lg">{player.full_name}</CardTitle>
+                        <CardDescription>{player.location}</CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Skill Level</span>
+                        <Badge variant="outline">{player.skill_level}/10</Badge>
+                      </div>
+                      <Button 
+                        className="w-full" 
+                        variant="outline"
+                        onClick={() => handleFollowPlayer(player.id)}
+                      >
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Follow
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-            <Card>
-              <CardContent className="py-8 text-center">
-                <p className="text-muted-foreground">Player matching feature will be available soon!</p>
-              </CardContent>
-            </Card>
           </TabsContent>
         </Tabs>
       </main>

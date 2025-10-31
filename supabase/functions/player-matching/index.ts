@@ -12,15 +12,23 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY not configured');
+    }
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_PUBLISHABLE_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader! } } }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) throw new Error('Unauthorized');
+    // Get auth user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new Error('No authorization header');
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user } } = await supabaseClient.auth.getUser(token);
+    if (!user) throw new Error('Not authenticated');
 
     // Get user profile and preferences
     const { data: profile } = await supabaseClient
@@ -36,15 +44,13 @@ serve(async (req) => {
       .single();
 
     // Get all other players
-    const { data: allProfiles } = await supabaseClient
+    const { data: players } = await supabaseClient
       .from('profiles')
-      .select('*')
+      .select('*, player_preferences(*)')
       .neq('id', user.id);
 
-    // Use AI to find matching players
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    // Use AI to match players
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
@@ -52,28 +58,33 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
-        messages: [{
-          role: 'user',
-          content: `Analyze and match players based on skill level, location, and sport preferences.
-          
-Current user:
-- Skill Level: ${profile?.skill_level || 1}
-- Location: ${profile?.location || 'Not specified'}
-- Preferred Sports: ${preferences?.preferred_sports?.join(', ') || 'None'}
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a sports player matching assistant. Analyze player profiles and return the top 5 best matches based on skill level, preferred sports, location, and availability. Return only a JSON array of player IDs ranked by match quality.'
+          },
+          {
+            role: 'user',
+            content: `Find the best player matches for:
+Current Player: ${JSON.stringify({ profile, preferences })}
+Available Players: ${JSON.stringify(players)}
 
-Available players: ${JSON.stringify(allProfiles?.slice(0, 20) || [])}
-
-Return a JSON array of the top 5 best matches with their user IDs and a brief reason for the match. Format:
-[{"userId": "uuid", "matchScore": 0-100, "reason": "brief explanation"}]`
-        }],
+Return format: { "matches": [{ "id": "uuid", "score": 0-100, "reason": "brief explanation" }] }`
+          }
+        ],
       }),
     });
 
-    const aiData = await aiResponse.json();
-    const matches = JSON.parse(aiData.choices[0].message.content);
+    if (!response.ok) {
+      throw new Error(`AI request failed: ${response.statusText}`);
+    }
+
+    const aiData = await response.json();
+    const content = aiData.choices[0].message.content;
+    const matches = JSON.parse(content);
 
     return new Response(
-      JSON.stringify({ matches }),
+      JSON.stringify(matches),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
