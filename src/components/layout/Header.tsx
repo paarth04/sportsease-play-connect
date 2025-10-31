@@ -64,7 +64,15 @@ const Header = () => {
         </Link>
 
         {/* Search Bar - Hidden on mobile */}
-        <div className="hidden md:flex items-center space-x-2 flex-1 max-w-md mx-8">
+        <div className="hidden md:flex items-center space-x-4 flex-1 max-w-2xl mx-8">
+          <nav className="flex items-center space-x-1">
+            <Link to="/facilities">
+              <Button variant="ghost" size="sm">Facilities</Button>
+            </Link>
+            <Link to="/community">
+              <Button variant="ghost" size="sm">Community</Button>
+            </Link>
+          </nav>
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input

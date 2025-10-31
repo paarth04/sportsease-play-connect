@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_feed: {
+        Row: {
+          activity_data: Json | null
+          activity_type: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          activity_data?: Json | null
+          activity_type: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          activity_data?: Json | null
+          activity_type?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_feed_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           booking_date: string
@@ -205,6 +237,83 @@ export type Database = {
           },
         ]
       }
+      player_connections: {
+        Row: {
+          created_at: string
+          follower_id: string
+          following_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          follower_id: string
+          following_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          follower_id?: string
+          following_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_connections_follower_id_fkey"
+            columns: ["follower_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_connections_following_id_fkey"
+            columns: ["following_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      player_preferences: {
+        Row: {
+          budget_range: Json | null
+          created_at: string
+          id: string
+          preferred_locations: string[] | null
+          preferred_sports: string[] | null
+          preferred_times: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          budget_range?: Json | null
+          created_at?: string
+          id?: string
+          preferred_locations?: string[] | null
+          preferred_sports?: string[] | null
+          preferred_times?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          budget_range?: Json | null
+          created_at?: string
+          id?: string
+          preferred_locations?: string[] | null
+          preferred_sports?: string[] | null
+          preferred_times?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -255,6 +364,194 @@ export type Database = {
           wallet_balance?: number | null
         }
         Relationships: []
+      }
+      team_members: {
+        Row: {
+          id: string
+          joined_at: string
+          role: string | null
+          team_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          role?: string | null
+          team_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          role?: string | null
+          team_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          avatar_url: string | null
+          captain_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          max_members: number | null
+          name: string
+          skill_level: number | null
+          sport: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          captain_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          max_members?: number | null
+          name: string
+          skill_level?: number | null
+          sport: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          captain_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          max_members?: number | null
+          name?: string
+          skill_level?: number | null
+          sport?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teams_captain_id_fkey"
+            columns: ["captain_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tournament_participants: {
+        Row: {
+          id: string
+          registered_at: string
+          team_id: string
+          tournament_id: string
+        }
+        Insert: {
+          id?: string
+          registered_at?: string
+          team_id: string
+          tournament_id: string
+        }
+        Update: {
+          id?: string
+          registered_at?: string
+          team_id?: string
+          tournament_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_participants_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_participants_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tournaments: {
+        Row: {
+          created_at: string
+          description: string | null
+          end_date: string
+          entry_fee: number | null
+          facility_id: string | null
+          id: string
+          max_teams: number | null
+          name: string
+          organizer_id: string | null
+          prize_pool: number | null
+          sport: string
+          start_date: string
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          end_date: string
+          entry_fee?: number | null
+          facility_id?: string | null
+          id?: string
+          max_teams?: number | null
+          name: string
+          organizer_id?: string | null
+          prize_pool?: number | null
+          sport: string
+          start_date: string
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          end_date?: string
+          entry_fee?: number | null
+          facility_id?: string | null
+          id?: string
+          max_teams?: number | null
+          name?: string
+          organizer_id?: string | null
+          prize_pool?: number | null
+          sport?: string
+          start_date?: string
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournaments_facility_id_fkey"
+            columns: ["facility_id"]
+            isOneToOne: false
+            referencedRelation: "facilities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournaments_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

@@ -2,3 +2,12 @@ project_id = "qlmqqujzamcfztklivej"
 
 [functions.create-payment-intent]
 verify_jwt = true
+
+[functions.player-matching]
+verify_jwt = true
+
+[functions.facility-recommendations]
+verify_jwt = true
+
+[functions.dynamic-pricing]
+verify_jwt = false
