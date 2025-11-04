@@ -326,7 +326,6 @@ export type Database = {
           location: string | null
           loyalty_points: number | null
           phone: string | null
-          role: Database["public"]["Enums"]["user_role"] | null
           skill_level: number | null
           updated_at: string | null
           wallet_balance: number | null
@@ -342,7 +341,6 @@ export type Database = {
           location?: string | null
           loyalty_points?: number | null
           phone?: string | null
-          role?: Database["public"]["Enums"]["user_role"] | null
           skill_level?: number | null
           updated_at?: string | null
           wallet_balance?: number | null
@@ -358,7 +356,6 @@ export type Database = {
           location?: string | null
           loyalty_points?: number | null
           phone?: string | null
-          role?: Database["public"]["Enums"]["user_role"] | null
           skill_level?: number | null
           updated_at?: string | null
           wallet_balance?: number | null
