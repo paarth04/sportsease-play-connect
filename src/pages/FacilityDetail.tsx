@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MapPin, Clock, DollarSign, Users, Star, Award } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { z } from "zod";
 
 interface Facility {
   id: string;
@@ -103,18 +104,55 @@ const FacilityDetail = () => {
       return;
     }
 
-    setBookingLoading(true);
+    // Validate booking inputs
+    const bookingSchema = z.object({
+      team_size: z.number().int().min(1).max(50),
+      special_requests: z.string().max(500).optional(),
+      booking_date: z.string().refine((date) => {
+        const bookingDate = new Date(date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return bookingDate >= today;
+      }, { message: "Booking date must be today or in the future" }),
+      start_time: z.string().regex(/^\d{2}:\d{2}$/, "Invalid time format"),
+      end_time: z.string().regex(/^\d{2}:\d{2}$/, "Invalid time format"),
+    });
+
     try {
+      const parsedTeamSize = parseInt(teamSize);
+      
+      const validatedData = bookingSchema.parse({
+        team_size: parsedTeamSize,
+        special_requests: specialRequests || undefined,
+        booking_date: selectedDate.toISOString().split("T")[0],
+        start_time: startTime,
+        end_time: endTime,
+      });
+
+      // Validate time range
+      const start = parseInt(startTime.split(":")[0]);
+      const end = parseInt(endTime.split(":")[0]);
+      if (end <= start) {
+        toast({
+          title: "Invalid Time Range",
+          description: "End time must be after start time",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setBookingLoading(true);
+
       const { data, error } = await supabase
         .from("bookings")
         .insert({
           user_id: user.id,
           facility_id: id,
-          booking_date: selectedDate.toISOString().split("T")[0],
-          start_time: startTime,
-          end_time: endTime,
-          team_size: parseInt(teamSize),
-          special_requests: specialRequests,
+          booking_date: validatedData.booking_date,
+          start_time: validatedData.start_time,
+          end_time: validatedData.end_time,
+          team_size: validatedData.team_size,
+          special_requests: validatedData.special_requests,
           total_amount: calculateTotalAmount(),
           status: "pending",
         })
@@ -128,14 +166,21 @@ const FacilityDetail = () => {
         description: "Redirecting to payment...",
       });
 
-      // Redirect to payment (will implement Stripe next)
       navigate(`/bookings/${data.id}/payment`);
     } catch (error: any) {
-      toast({
-        title: "Booking Failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Invalid Input",
+          description: error.errors[0].message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Booking Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     } finally {
       setBookingLoading(false);
     }

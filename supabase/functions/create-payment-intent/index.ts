@@ -14,6 +14,15 @@ serve(async (req) => {
 
   try {
     const { bookingId } = await req.json();
+
+    // Validate bookingId
+    if (!bookingId || typeof bookingId !== 'string' || !bookingId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid bookingId format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY');
     
     if (!STRIPE_SECRET_KEY) {

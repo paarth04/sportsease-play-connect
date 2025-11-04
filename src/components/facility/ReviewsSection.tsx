@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { z } from "zod";
 
 interface Review {
   id: string;
@@ -67,24 +68,27 @@ const ReviewsSection = ({ facilityId }: ReviewsSectionProps) => {
       return;
     }
 
-    if (rating === 0 || !reviewText.trim()) {
-      toast({
-        title: "Missing information",
-        description: "Please provide a rating and review text",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Validate review inputs
+    const reviewSchema = z.object({
+      rating: z.number().int().min(1).max(5),
+      review_text: z.string().trim().min(1).max(1000),
+    });
 
-    setSubmitting(true);
     try {
+      const validatedData = reviewSchema.parse({
+        rating,
+        review_text: reviewText,
+      });
+
+      setSubmitting(true);
+
       const { error } = await supabase
         .from("facility_reviews")
         .insert({
           facility_id: facilityId,
           user_id: user.id,
-          rating,
-          review_text: reviewText,
+          rating: validatedData.rating,
+          review_text: validatedData.review_text,
         });
 
       if (error) throw error;
@@ -99,11 +103,19 @@ const ReviewsSection = ({ facilityId }: ReviewsSectionProps) => {
       setShowForm(false);
       fetchReviews();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Invalid Input",
+          description: error.errors[0].message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     } finally {
       setSubmitting(false);
     }

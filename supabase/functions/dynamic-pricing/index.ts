@@ -14,6 +14,35 @@ serve(async (req) => {
   try {
     const { facilityId, date, startTime, endTime } = await req.json();
 
+    // Validate inputs
+    if (!facilityId || typeof facilityId !== 'string' || !facilityId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid facilityId format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!date || typeof date !== 'string' || !date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid date format. Expected YYYY-MM-DD' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!startTime || typeof startTime !== 'string' || !startTime.match(/^\d{2}:\d{2}$/)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid startTime format. Expected HH:MM' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!endTime || typeof endTime !== 'string' || !endTime.match(/^\d{2}:\d{2}$/)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid endTime format. Expected HH:MM' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
